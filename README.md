@@ -1,6 +1,6 @@
 ## Synopsis
 
-episody is a gem which will scan bb type sites of your choosing and notify you when there are new episodes of shows you watch available.  But strongly discourages downloading those shows of course.
+episody is a gem which will scan bb type sites of your choosing and notify you when there are new episodes of shows you watch available.  But discourages downloading those shows of course.
 
 ## Code Examples
 `require 'episodey'`
@@ -58,8 +58,8 @@ ep.flush
 ep.enmod [modname]
 ```
 
-```
 ######disable a mod
+```
 ep.dismod [modname]
 ```
 
