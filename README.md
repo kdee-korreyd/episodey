@@ -2,77 +2,74 @@
 
 episody is a gem which will scan bb type sites of your choosing and notify you when there are new episodes of shows you watch available.  But strongly discourages downloading those shows of course.
 
-## Code Example
-require 'episodey'
+## Code Examples
+`require 'episodey'`
 
 >all of the examples below are run from irb which is currently the main command line interface for episodey, as such you may use the same commands within a ruby script to perform the same actions and it will work just fine
 
+######create a new episodey object
 ```
-#create a new episodey object
 ep=EPISODEY::episodey
 ```
 
+######initialize an episodey object with config and database info, including scan config, websites, and media sets
 ```
-#initialize an episodey object with config and database info 
-#	including scan config, websites, and media sets
 'ep.load [scancfgfile]'
 ```
 
+######scan websites specified in scan config for media sets specified in scan config and hold all new media and create notifications about newly found media
 ```
-#scan websites specified in scan config for media sets specified in scan config
-#	and hold all new media and create notifications about newly found media
 ep.scan
 ```
 
+######prints the new media list found by ep.scan
 ```
-#prints the new media list found by ep.scan
 ep.list
 ```
 
+######prints info for all media sets
 ```
-#prints info for all media sets
 ep.info
 ```
 
+######send out any unsent notifications
 ```
-#send out any unsent notifications
 ep.notify
 ```
 
+######save current session (media sets, websites, notifications) for later use
 ```
-#save current session (media sets, websites, notifications) for later use
 ep.save
 ```
 
+######clear out any currently saved scan information 
+note: this does not remove data saved with ep.save it just clears out the scan cache so you can run a new clean scan if you want
 ```
-#clear out any currently saved scan information 
-#	note: this does not remove data saved with ep.save it just clears out
-#		the scan cache so you can run a new clean scan if you want
 ep.clear
 ```
 
+######flush first runs ep.save and then runs ep.clear
 ```
-#flush first runs ep.save and then runs ep.clear
 ep.flush
 ```
 
+######enable a mod
 ```
-#enable a mod
 ep.enmod [modname]
 ```
 
 ```
-#disable a mod
+######disable a mod
 ep.dismod [modname]
 ```
 
+######list all available mods
 ```
-#list all available mods
 ep.list\_mods
 ```
 
+######list all enable mods
 ```
-#list all enable mods
 ep.list\_enmods
 ```
 
@@ -81,7 +78,7 @@ ep.list\_enmods
 
 >You may also explicitly set media set & website data through their corresponding config files
 
-######media set configs may be stored in
+#####media set configs may be stored in
 /media\_sets
 	*.cfg <= json format
 
@@ -110,7 +107,7 @@ elementary.cfg
 ]
 ```
 
-######website data may be stored in
+#####website data may be stored in
 /websites
 	*.cfg <= json format
 :name
@@ -144,7 +141,7 @@ rlsbb.cfg
 ]
 ```
 
-###### Scan Config File
+##### Scan Config File
 scan config files (json format) may be stored anywhere and are referenced as the first parameter to ep.load
 
 it has 2 params 
