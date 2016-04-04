@@ -14,7 +14,7 @@ ep=EPISODEY::episodey
 
 ######initialize an episodey object with config and database info, including scan config, websites, and media sets
 ```
-'ep.load [scancfgfile]'
+ep.load [scancfgfile]
 ```
 
 ######scan websites specified in scan config for media sets specified in scan config and hold all new media and create notifications about newly found media
@@ -65,12 +65,12 @@ ep.dismod [modname]
 
 ######list all available mods
 ```
-ep.list\_mods
+ep.list_mods
 ```
 
 ######list all enable mods
 ```
-ep.list\_enmods
+ep.list_enmods
 ```
 
 
@@ -79,18 +79,18 @@ ep.list\_enmods
 >You may also explicitly set media set & website data through their corresponding config files
 
 #####media set configs may be stored in
-/media\_sets
+/media_sets
 	*.cfg <= json format
 
 example:
 ```
 #create a media set for episodes of the show 'Elementary'
 #"name": => human readable name
-#"u\_id": => uniq id for this media set (used as reference from other objects)
-#"default\_media\_class": => instance type for media in this set
-#"search\_url\_keys": => keys for website url entry points to search using
+#"u_id": => uniq id for this media set (used as reference from other objects)
+#"default_media_class": => instance type for media in this set
+#"search_url_keys": => keys for website url entry points to search using
 #"search": => regex list used to search for positings related to this media set
-#"id\_format\_string": => a format string used to create a uniform u\_id for any media to be added to this media set
+#"id_format_string": => a format string used to create a uniform u_id for any media to be added to this media set
 elementary.cfg
 [
 {
@@ -111,7 +111,7 @@ elementary.cfg
 /websites
 	*.cfg <= json format
 :name
-:u\_id
+:u_id
 :urls
 -	:home
 	:shows
@@ -124,7 +124,7 @@ example:
 ```
 #create a website object
 #"name": => human readable name
-#"u\_id": => uniq id for this website (used as reference from other objects)
+#"u_id": => uniq id for this website (used as reference from other objects)
 #"urls": => hash of entry point urls
 rlsbb.cfg
 [
@@ -148,7 +148,7 @@ it has 2 params
 	*mediasets
 	*websites
 
->each param is a list of regex which will determine which websites are crawled and which media sets episody will look for. the regex will be checked against the u\_id of each param type.
+>each param is a list of regex which will determine which websites are crawled and which media sets episody will look for. the regex will be checked against the u_id of each param type.
 
 example:
 ```
