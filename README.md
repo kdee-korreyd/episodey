@@ -5,16 +5,14 @@ episody is a gem which will scan bb type sites of your choosing and notify you w
 ## Code Example
 require 'episodey'
 
-#all of the examples below are run from irb which is currently the main command line interface for episodey
-#	as such you may use the same commands within a ruby script to perform the same actions and it will work
-#	just fine
+>all of the examples below are run from irb which is currently the main command line interface for episodey, as such you may use the same commands within a ruby script to perform the same actions and it will work just fine
 
 #create a new episodey object
 ep=EPISODEY::episodey
 
 #initialize an episodey object with config and database info 
 #	including scan config, websites, and media sets
-ep.load [scancfgfile]
+'ep.load [scancfgfile]'
 
 #scan websites specified in scan config for media sets specified in scan config
 #	and hold all new media and create notifications about newly found media
@@ -123,7 +121,7 @@ it has 2 params
 	*mediasets
 	*websites
 
-each param is a list of regex which will determine which websites are crawled and which media sets episody will look for. the regex will be checked against the u\_id of each param type.
+>each param is a list of regex which will determine which websites are crawled and which media sets episody will look for. the regex will be checked against the u\_id of each param type.
 
 example:
 #the following example will scan the websites dentoted by string rlsbb and divxcentral for new media from the 
