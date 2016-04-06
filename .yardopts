@@ -1,0 +1,8 @@
+--no-private 
+--protected 
+lib/*.rb 
+lib/episodey/*.rb 
+- 
+README 
+LEGAL 
+COPYING
