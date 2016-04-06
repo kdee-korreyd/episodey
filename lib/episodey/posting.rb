@@ -1,6 +1,10 @@
 module Episodey
 	#references a media posting on a website.
 	class Posting < Episodey::Base
+		# @!attribute html
+		#   @return [String] the html included in this posting
+		attr_accessor :html
+
 		# @!attribute url
 		#   @return [String] the url of this posting
 		attr_accessor :url

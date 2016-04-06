@@ -100,3 +100,4 @@ tags
 
 sandbox
 docs
+*.lock
