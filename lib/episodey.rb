@@ -119,7 +119,7 @@ module Episodey
 		end
 
 		# get all scannable websites.  scannable websites are determined by xreffing {#scan_cfg} with {#websites}
-		# @return [Array<Episodey::Website>] array of {Episodey::Website}. raise Exception on failure.
+		# @return [Hash<Episodey::Website>] hash of {Episodey::Website}s. key => {Base#u_id}. raise Exception on failure.
 		def get_scannable_websites
 		end
 

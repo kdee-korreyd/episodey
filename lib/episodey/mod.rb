@@ -16,9 +16,9 @@ module Episodey
 			# called at the very beginning {Episodey::App#scan}
 			#   the scan_cfg may be directly modified from this method.  It will modify the calling instances {Episodey::App#scan_cfg} attribute.
 			# @param app [Episodey::App] calling instance
-			# @param websites [Array<Episodey::Website>] list of websites available to scan.
+			# @param websites [Hash<Episodey::Website>] list of websites available to scan.
 			# @param scan_cfg [Episodey::ScanCfg] scan config object
-			# @return [Array<Episodey::Website>] if modder wants to run scan on a modified list of websites
+			# @return [Hash<Episodey::Website>] if modder wants to run scan on a modified list of websites
 			# @return [nil] if modder does not want to modify the website list
 			def pre_scan(app,websites,scan_cfg)
 			end
@@ -41,7 +41,7 @@ module Episodey
 
 			# overrides the default {Episodey::App#scan} functionality.
 			# @param app [Episodey::App] calling instance
-			# @param websites [Array<Episodey::Website>] list of websites available to scan.
+			# @param websites [Hash<Episodey::Website>] list of websites available to scan.
 			# @param scan_cfg [Episodey::ScanCfg] scan config object
 			# @return [Array<Episodey::Media>,Boolean] scanned/filtered media list, 
 			#   true if the original scan functionality should still run. false if scanning is complete.
