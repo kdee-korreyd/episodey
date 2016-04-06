@@ -171,16 +171,14 @@ scan.cfg
 
 ## Installation
 
-git install episodey #thats all
-
+[no installation yet]
 
 ## Contributors
 
 fork me
 
-you may add issues here or yell at me on:
-@twitter
+you may add issues on gitub
 
 ## License
 
-the do whatever you want license
+[no license specified]
