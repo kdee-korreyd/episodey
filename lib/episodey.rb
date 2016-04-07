@@ -85,6 +85,9 @@ module Episodey
 		#
 		# @return [Episodey::ScanCfg] created {Episodey::ScanCfg} object.  raises Exception on failure.
 		def load(*args)
+			#get all files in a directory
+			#dir = 'websites/'
+			#Dir.foreach('websites/') { |f| puts f if File.file?(dir+f)  }
 		end
 
 		# save current session (media sets/media, websites, notifications) to db
@@ -172,9 +175,47 @@ module Episodey
 		attr_accessor :u_id
 	end
 
+	#ScanCfg parses and hold scan config
+	class ScanCfg
+		# @!attribute media_sets
+		#   @return [Array<String>] regex list of media set to search (by {Base#u_id})
+		attr_accessor :media_sets
+
+		# @!attribute websites
+		#   @return [Array<String>] regex list of websites to search (by {Base#u_id})
+		attr_accessor :websites
+
+		# constructor
+		# @param cfg_path [String] path to config file (actual file, not the directory)
+		# @return [ScanCfg] new ScanCfg instance
+		def initialize(cfg_path)
+			self.load(cfg_path)
+		end
+
+		# initialize ScanCfg with contents of cfg_path
+		# @param cfg_path [String] path to config file (actual file, not the directory)
+		# @return [ScanCfg] new ScanCfg instance
+		def load(cfg_path)
+			file = File.read(cfg_path)
+			d = JSON.parse(file)
+			@media_sets = d["media_sets"]
+			@websites = d["websites"]
+			return self
+		end
+	end
+
 	# create a new episodey object
 	# @return [Episodey::App] a new episodey object
 	def Episodey
 		self.App.new
 	end
 end
+
+require_relative 'episodey/user'
+require_relative 'episodey/db'
+require_relative 'episodey/media'
+require_relative 'episodey/media-set'
+require_relative 'episodey/website'
+require_relative 'episodey/posting'
+require_relative 'episodey/notification'
+require 'mail'

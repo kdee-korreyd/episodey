@@ -9,19 +9,17 @@ module Episodey
 		#   @return [Posting] reference to the Posting that refers to this Media.
 		attr_accessor :posting
 
-		# initialize this Media object from obj. 
-		#   obj must be a class which create() knows how to convert into Media. 
-		#   currently: [Posting]
-		# @param obj [Object] the Object to use to create this Media.
-		# @return [Episodey::Media] self.  raises Exception on failure.
-		# @return [false] if Object's type is not recognized. 
-		def create(obj)
+		# constructor
+		# @return [Episodey::Media] new Media
+		def initialize
 		end
 
-		# initialize this Media object using a Posting object 
+		# set the posting reference, and update postings media reference
 		# @param posting [Episodey::Posting] the Posting object to use to create this Media.
 		# @return [Episodey::Media] self.  raises Exception on failure.
-		def create_from_posting(posting)
+		def set_posting(posting)
+			@posting = posting
+			@posting.media = self
 		end
 
 		# prints media information.
