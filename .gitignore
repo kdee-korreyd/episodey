@@ -102,3 +102,4 @@ sandbox
 docs
 *.lock
 *.db
+*.cfg
