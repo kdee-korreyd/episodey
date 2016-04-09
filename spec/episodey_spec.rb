@@ -181,6 +181,31 @@ describe Episodey::Website do
 			d = Episodey::Website.load_cfg 'spec/config/websites/example.cfg'
 			d.wont_be_nil.must_equal false
 		end
+
+		it "should raise an Exception if u_id is empty" do
+			assert_raises Exception do
+				d = Episodey::Website.load_cfg 'spec/config/websites/example.bad'
+			end
+		end
+	end
+
+	describe "load_db" do
+		it "should return all websites loaded from the database" do
+			d = Episodey::Website.load_db nil
+			assert_operator d.length, :>, 1
+		end
+
+		it "should replace existing db attributes with website list passed in if u_id matches" do
+			c = Episodey::Website.load_cfg 'spec/config/websites/example.cfg'
+			d = Episodey::Website.load_db c
+			d['example'].name.must_equal 'fromconfig'
+		end
+
+		it "should merge website list passed in with websites loaded from db" do
+			c = Episodey::Website.load_cfg 'spec/config/websites/example.cfg'
+			d = Episodey::Website.load_db c
+			d['extraexample'].wont_be_nil.must_equal false
+		end
 	end
 
 	describe "html_to_postings" do
@@ -188,6 +213,17 @@ describe Episodey::Website do
 			html = "<a href='http://url1.com'>url1</a><a href='http://url2.com'>url2</a>"
 			d = Episodey::Website.html_to_postings html
 			assert_operator d.length, :>, 0
+		end
+
+		it "should raise exception if argument is nil" do
+			assert_raises Exception do
+				Episodey::Website.html_to_postings nil
+			end
+		end
+
+		it "should return an empty array if argument is an empty string" do
+			d = Episodey::Website.html_to_postings ""
+			d.length.must_equal 0
 		end
 	end
 
@@ -204,6 +240,44 @@ describe Episodey::Website do
 				d = Episodey::DB::Website.find(r.id)
 			rescue
 				d.wont_be_nil.must_equal false
+			end
+		end
+
+		it "should update db record if @id exists" do
+			r = Episodey::Website.new
+			r.id = 2
+			r.u_id = "http://exampleupdated.com"
+			r.name = "example updated"
+			r.urls = {"home": "exampleupdated.com"}
+			r.save
+
+			d = nil
+			r.id.must_equal 2 #make sure the id hasn't change mysteriously
+			begin
+				d = Episodey::DB::Website.find(r.id)
+			rescue
+				d.wont_be_nil.must_equal false
+				d.name.must_equal "example updated"
+				d.uid.must_equal "http://exampleupdated.com"
+			end
+		end
+
+		it "should return false if the object is not initialized" do
+			r = Episodey::Website.new
+			#r.u_id = nil #no u_id
+			r.name = "example"
+			r.urls = {"home": "exampleupdated.com"}
+			r.save().must_equal false
+		end
+
+		it "should raise and exception if updating a non-existant id" do
+			r = Episodey::Website.new
+			r.id = 9999999
+			r.u_id = "http://exampleupdated.com"
+			r.name = "example updated"
+			r.urls = {"home": "exampleupdated.com"}
+			assert_raises Exception do
+				r.save
 			end
 		end
 	end

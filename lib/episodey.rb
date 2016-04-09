@@ -173,6 +173,16 @@ module Episodey
 		#   the u_id is a string used to quickly refer to this particular object
 		#   @return [String] unique identifier for this media set
 		attr_accessor :u_id
+
+		# checks to see if this object is initialize.  this is the most basic initialization check.
+		#   you may just override this method to change the init check for any subclass which inherits {Base}
+		# @return [Boolean] true if initialized, false if not initialized
+		def is_initialized
+			if self.u_id.to_s.empty?
+				return false
+			end	
+			return true
+		end
 	end
 
 	#ScanCfg parses and hold scan config
@@ -215,7 +225,7 @@ require_relative 'episodey/user'
 require_relative 'episodey/db'
 require_relative 'episodey/media'
 require_relative 'episodey/media-set'
-require_relative 'episodey/website'
 require_relative 'episodey/posting'
+require_relative 'episodey/website'
 require_relative 'episodey/notification'
 require 'mail'
