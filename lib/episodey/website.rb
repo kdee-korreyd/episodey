@@ -97,6 +97,26 @@ module Episodey
 			return websites
 		end
 
+		# inverse of {db_to_object}
+		# @param website_list [Array<Episodey::Website>] the Website list to convert
+		# @return [Array<Episodey::DB::Website>] converted list
+		def self.object_to_db(website_list)
+			db_websites = []
+			website_list.each do |site|
+				r = nil
+				if site.id.nil? 
+					r = Episodey::DB::Website.new
+				else
+					r = Episodey::DB::Website.find(site.id)
+				end
+				r.u_id = site.u_id;
+				r.name = site.name;
+				r.urls_yaml = site.urls.to_yaml;
+				db_websites << r
+			end
+			return db_websites
+		end
+
 		# take html and convert it to a list of {Posting}s
 		# @param html [String] the html to convert into an array of {Posting}s
 		# @return [Array<Posting>] array of postings.  raises Exception on failure.
@@ -128,15 +148,7 @@ module Episodey
 				return false
 			end
 
-			r = nil
-			if @id.nil? 
-				r = Episodey::DB::Website.new
-			else
-				r = Episodey::DB::Website.find(@id)
-			end
-			r.u_id = @u_id;
-			r.name = @name;
-			r.urls_yaml = @urls.to_yaml;
+			r = Episodey::Website.object_to_db([self])[0]
 			r.save
 
 			@id = @id.nil? ? r.id : @id
