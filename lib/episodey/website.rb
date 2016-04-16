@@ -94,6 +94,7 @@ module Episodey
 				website.urls = YAML.load(site.urls_yaml)
 				websites << website
 			end
+
 			return websites
 		end
 
@@ -133,9 +134,11 @@ module Episodey
 			selected = doc.css("a")
 
 			selected.each do |p|
-				posting = Episodey::Posting.new(p.attributes['href'].value)
-				posting.html = p.inner_html
-				postings << posting
+				if p.attributes && p.attributes['href']
+					posting = Episodey::Posting.new(p.attributes['href'].value)
+					posting.html = p.inner_html
+					postings << posting
+				end
 			end
 
 			return postings

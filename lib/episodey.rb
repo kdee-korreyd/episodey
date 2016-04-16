@@ -1,3 +1,5 @@
+require 'active_support/all'
+
 #the main Episodey module
 module Episodey
 	#App is an episody instance, multiple instances are allowed
@@ -27,19 +29,140 @@ module Episodey
 		#   @return [Episodey::ScanCfg] 
 		attr_accessor :scan_cfg
 
+		# get all scannable websites.  scannable websites are determined by xreffing {#scan_cfg} with {#websites}
+		# @return [Hash<Episodey::Website>] hash of {Episodey::Website}s. key => {Base#u_id}. raise Exception on failure.
+		def get_scannable_websites
+			scannable = {}
+			@websites.each do |k,v|
+				@scan_cfg.websites.each do |regex|
+					re = Regexp.new(regex)
+					if v.u_id.match(re)
+						scannable[v.u_id] = v
+						break
+					end
+				end
+			end
+			return scannable
+		end
+
+		# get all scannable media_sets.  scannable media_sets are determined by xreffing {#scan_cfg} with {#media_sets}
+		# @return [Hash<Episodey::MediaSet>] hash of {Episodey::MediaSet}s. key => {Base#u_id}. raise Exception on failure.
+		def get_scannable_media_sets
+			scannable = {}
+			@media_sets.each do |k,v|
+				@scan_cfg.media_sets.each do |regex|
+					re = Regexp.new(regex)
+					if v.u_id.match(re)
+						scannable[v.u_id] = v
+						break
+					end
+				end
+			end
+			return scannable
+		end
+
 		# scan websites specified in scan config for media sets specified in 
 		# scan config.  Loads {#new_media} with any new media found by the scan.
 		# Also adds notifications about new media to {#new_notifications}
 		# @return [Array<Object>] this instances {#new_media} attribute. raise Exception on failure.
 		def scan
+			new_media = []
+			scannable_w = self.get_scannable_websites
+			scannable_ms = self.get_scannable_media_sets
+
+			#only scan the keys necessary to find the media we want
+			search_url_keys = {}
+			@media_sets.each do |k,v|
+				v.search_url_keys.each do |url_key|
+					search_url_keys[url_key] = true
+				end
+			end
+
+			#crawl sites and get postings	
+			already_searched = {}
+			postings = []
+			scannable_w.each do |site_id,site|
+				search_url_keys.each do |url_key,ignored|
+					if site.urls[url_key] && !already_searched[site.urls[url_key]]
+						uri = URI(site.urls[url_key])
+						html = Net::HTTP.get(uri)
+						postings.concat(Episodey::Website.html_to_postings(html))
+						already_searched[site.urls[url_key]] = true
+					end
+				end
+			end
+
+			#convert postings to media
+			media_list = {}
+			scannable_ms.each do |ms_id,ms|
+				media_list[ms.u_id] = []
+				postings.each do |posting|
+					#[bug] since .matches updates the media.u_id I end up creating a bunch of
+					#new Media objects that i never use (when they dont match)
+					#  added if media.nil? and reset media to nil after its used so I don't keep recreating it when not necessary
+					media = Episodey::Media.new if media.nil?
+					if ms.matches?(posting.html,true,media)
+						media.set_posting(posting)
+						media.name = media.u_id
+						media_list[ms.u_id] << media
+						media = nil
+					end
+				end
+			end
+
+			#remove any media which we already have
+			#check against @media_sets and against the db for media with the same u_id	
+			media_list.each do |ms_k,ms_v|
+				ms_v.each do |m|
+					keep = true
+					#check db first because this can be done with a quick query
+					if Episodey::DB::Media.find_by_u_id(m.u_id)
+						keep = false
+					end
+
+					#currently checks only media in the same media set
+					#in reaility media.u_id should be uniqe across all media no matter the media set
+					if keep && !@media_sets[ms_k].nil? && !@media_sets[ms_k].media.nil?
+						if @media_sets[ms_k].find_media_by_u_id(m.u_id)
+							keep = false
+							break
+						end
+					end
+
+					if keep
+						@media_sets[ms_k].add_media(m)
+						new_media << m
+					end
+				end
+			end
+
+			@new_media = [] if @new_media.nil?
+			@new_media.concat new_media
+
+			@new_notifications = [] if @new_notifications.nil?
+			@new_notifications.concat self.create_notifications(@new_media)
+			#puts @new_notifications.to_yaml
+
+			return @new_media
 		end
 
-		# clear out any currently saved scan information.
-		# reinitializes {#new_media} and {#new_notifications}
-		# @return [nil]
-		def clear_scan_data
+		
+		# [bug], the functionality this method would have provided is already handled by {#scan}
+		# done in #scan get matched media from the list passed in.  matched media is determined by xreffing {#scan_cfg} with
+		# the media list passed in to the media_list param
+		# @param media_list [Array<Episodey::Media>] array of {Episodey::Media} to check for matches on. [default => {#new_media}]
+		# @return [Array<Episodey::Media>] array of {Episodey::Media}. raise Exception on failure.
+		def get_matched_media(media_list)
 		end
-		alias_method :clear, :clear_scan_data
+
+		# return a list of media from media_list param with any records which are already saved
+		# to the database excluded.  
+		#
+		# note: Media records must have a valid {Episodey::Media#media_set} value set in order to be able to properly check the database for duplicates.
+		# @param media_list [Array<Episodey::Media>] array of {Episodey::Media} to check for duplicates on. [default => {#new_media}]
+		# @return [Array<Episodey::Media>] array of {Episodey::Media} with duplicates excluded. raise Exception on failure.
+		def remove_media_duplicates(media_list)
+		end
 
 		# sends out any unsent notifications.  grouped means notificaion records will be 
 		# consolidated and sent per user.  Each user receives 1 email.
@@ -85,19 +208,94 @@ module Episodey
 		#
 		# @return [Episodey::ScanCfg] created {Episodey::ScanCfg} object.  raises Exception on failure.
 		def load(*args)
-			#get all files in a directory
-			#dir = 'websites/'
-			#Dir.foreach('websites/') { |f| puts f if File.file?(dir+f)  }
+			cfg_path = nil
+			cfg_type = nil
+			scan_cfg_path = ""
+			websites_cfg_path = ""
+			media_sets_cfg_path = ""
+
+			if ( args.length == 1 )
+				cfg_path = args[0]
+			elsif ( args.length == 2 )
+				cfg_path = args[1]
+				cfg_type = args[0]
+			else
+				raise Exception,"Wrong number of arguments"
+			end
+
+			#load configs
+			if ( cfg_type.nil? )	
+				scan_cfg_path = cfg_path
+				websites_cfg_path = "#{scan_cfg_path}/websites"
+				media_sets_cfg_path = "#{scan_cfg_path}/media_sets"
+				websites = {}
+				media_sets = {}
+
+				#scan
+				if File.exists?("#{scan_cfg_path}/scan.cfg")
+					@scan_cfg = Episodey::ScanCfg.new("#{scan_cfg_path}/scan.cfg")
+				end
+
+				#websites
+				w_config_count = 0
+				Dir.foreach(websites_cfg_path) do |f| 
+					if !File.directory?(f) && !f.match(/.cfg$/).nil? 
+						websites.merge! Episodey::Website.load_cfg("#{websites_cfg_path}/#{f}")
+						w_config_count += 1
+					end
+				end
+
+				#media sets
+				ms_config_count = 0
+				Dir.foreach(media_sets_cfg_path) do |f| 
+					if !File.directory?(f) && !f.match(/.cfg$/).nil? 
+						media_sets.merge! Episodey::MediaSet.load_cfg("#{media_sets_cfg_path}/#{f}")
+						ms_config_count += 1
+					end
+				end
+
+				#load db info
+				@websites = Episodey::Website.load_db(websites)
+				@media_sets = Episodey::MediaSet.load_db(media_sets)
+			else	
+				if File.exists?(cfg_path)
+					case cfg_type
+					when "scan"
+						@scan_cfg = Episodey::ScanCfg.new(cfg_path)
+					when "website"
+						@websites = {} if @websites.nil?
+						@websites.merge! Episodey::Website.load_cfg(cfg_path)
+					when "media_set"
+						@media_sets = {} if @media_sets.nil?
+						@media_sets.merge! Episodey::MediaSet.load_cfg(cfg_path)
+					else
+						raise Exception, "Unknown config type given."
+					end
+				else
+					raise Exception, "The given config file does not exist"
+				end
+			end
 		end
 
 		# save current session (media sets/media, websites, notifications) to db
-		# @return [nil]
+		# @return [nil] throws Exception no failure
 		def save
 		end
+
+		# clear out any currently saved scan information.
+		# reinitializes {#new_media} and {#new_notifications}
+		# @return [nil]
+		def clear_scan_data
+			@new_media = nil
+			@new_notifications = nil
+		end
+		alias_method :clear, :clear_scan_data
 
 		# runs {#save} and then runs {#clear}
 		# @return [nil]
 		def flush
+			self.save
+			self.clear_scan_data
 		end
 
 		# enable a mod
@@ -121,32 +319,17 @@ module Episodey
 		def list_enmods
 		end
 
-		# get all scannable websites.  scannable websites are determined by xreffing {#scan_cfg} with {#websites}
-		# @return [Hash<Episodey::Website>] hash of {Episodey::Website}s. key => {Base#u_id}. raise Exception on failure.
-		def get_scannable_websites
-		end
-
-		# get matched media from the list passed in.  matched media is determined by xreffing {#scan_cfg} with
-		# the media list passed in to the media_list param
-		# @param media_list [Array<Episodey::Media>] array of {Episodey::Media} to check for matches on. [default => {#new_media}]
-		# @return [Array<Episodey::Media>] array of {Episodey::Media}. raise Exception on failure.
-		def get_matched_media(media_list)
-		end
-
-		# return a list of media from media_list param with any records which are already saved
-		# to the database excluded.  
-		#
-		# note: Media records must have a valid {Episodey::Media#media_set} value set in order to be able to properly check the database for duplicates.
-		# @param media_list [Array<Episodey::Media>] array of {Episodey::Media} to check for duplicates on. [default => {#new_media}]
-		# @return [Array<Episodey::Media>] array of {Episodey::Media} with duplicates excluded. raise Exception on failure.
-		def remove_media_duplicates(media_list)
-		end
-
 		# use the notify() method of each {Episodey::Media} object in the media_list param to generate notifications.
 		# results are appended to {#new_notifications}
 		# @param media_list [Array<Episodey::Media>] array of {Episodey::Media}. [default => {#new_media}]
 		# @return [Array<Episodey::Notification>] array of {Episodey::Notification}s returned by the notify() calls. raise Exception on failure.
 		def create_notifications(media_list)
+			notifications = []
+			media_list.each do |m|
+				n = m.notify
+				notifications << n if n
+			end
+			return notifications
 		end
 
 		# this is just an example of how to document an options hash
@@ -216,11 +399,38 @@ module Episodey
 
 	# create a new episodey object
 	# @return [Episodey::App] a new episodey object
-	def Episodey
-		self.App.new
+	def self.Episodey
+		self::App.new
+	end
+
+	#this module holds information about the active user
+	module Session
+		mattr_accessor :email_on do
+			false
+		end
+
+		mattr_accessor :user
+
+		# set the currently active user by id
+		# @params id [Integer] the user id to set as the active user
+		# @returns [Episodey::DB::User] if user was set successfully
+		# @returns [false] if the user could not be found 
+		def self.set_user_by_id(id)
+			begin
+				user = Episodey::DB::User.find(id)
+			rescue Exception => e
+				#puts e
+				return false
+			end
+
+			self.user = user
+			return user
+		end
 	end
 end
 
+require 'mail'
+require 'net/http'
 require_relative 'episodey/user'
 require_relative 'episodey/db'
 require_relative 'episodey/media'
@@ -228,4 +438,5 @@ require_relative 'episodey/media-set'
 require_relative 'episodey/posting'
 require_relative 'episodey/website'
 require_relative 'episodey/notification'
-require 'mail'
+
+

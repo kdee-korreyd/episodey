@@ -104,3 +104,7 @@ docs
 *.db
 *.cfg
 *.bad
+
+#temporary
+test_helper.rb
+console.rb

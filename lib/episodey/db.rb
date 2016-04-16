@@ -75,6 +75,7 @@ module Episodey
 						"id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
 						"media_id" integer, 
 						"link" varchar(255),
+						"html" text,
 						"created_at" datetime,
 						"updated_at" datetime,
 						FOREIGN KEY (media_id) REFERENCES media(id) ON UPDATE CASCADE ON DELETE CASCADE
@@ -100,7 +101,7 @@ module Episodey
 						"user_id" integer,
 						"media_id" integer,
 						"subject" varchar(500), 
-						"body" text, 
+						"message" text, 
 						"is_sent" integer,
 						"created_at" datetime,
 						"updated_at" datetime,
@@ -149,6 +150,10 @@ module Episodey
 
 		class Media < ActiveRecord::Base
 			self.table_name = "media"
+
+			def find_by_u_id(u_id)
+				self.where(u_id: u_id).first
+			end
 		end
 
 		class Posting < ActiveRecord::Base
