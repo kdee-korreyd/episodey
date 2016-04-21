@@ -3,10 +3,14 @@
 	"name": "rlsbb.com",
 	"u_id": "rlsbb",
 	"urls": {
-		"home": "http://rlsbb.com",
+		"home": "http://rlsbb.com{searcher}{pager}",
 		"rss": "http://feeds.feedburner.com/rlsbb/MrCi",
-		"shows": "http://rlsbb.com/category/tv-shows/",
-		"movies": "http://rlsbb.com/category/movies/"
+		"shows": "http://rlsbb.com/category/tv-shows/{searcher}{pager}",
+		"movies": "http://rlsbb.com/category/movies/{searcher}{pager}"
+	},
+	"args": {
+		"pager": ["url","/page/{x}"],
+		"searcher": ["url","/search/{x}"]
 	}
 }
 ]
