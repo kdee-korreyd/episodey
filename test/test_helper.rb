@@ -9,17 +9,7 @@ Minitest::Reporters.use! Minitest::Reporters::SpecReporter.new
 
 module Episodey
 	module Test
-		mattr_accessor :smtp_config do
-			{ 
-				:address => 'smtp.gmail.com', 
-				:port => 587, 
-				:domain => 'gmail.com', 
-				:user_name => 'user'
-				:password => 'pass', 
-				:enable_starttls_auto => true, 
-				:openssl_verify_mode => 'none' 
-			}
-		end
+		mattr_accessor :smtp_config
 
 		mattr_accessor :debug_email do
 			"debug@example.com"
@@ -34,6 +24,8 @@ module Episodey
 		def self.generate_notification_object(oid)
 			oid = oid.nil? ? "notification-" + rand(99999).to_s : oid
 			d = Episodey::Notification.new
+			d.ntype = "Test"
+			d.ntype_id = nil
 			d.user_id = 2
 			d.subject = "#{oid}"
 			d.message = "#{oid} This is the message"
@@ -89,6 +81,9 @@ YAMLSTR
 					:shows => 'http://test.com/shows',
 					:movies => 'http://test.com/movies',
 					:rss => 'http://test.com/rss'
+				}.to_yaml,
+				:args_yaml => {
+					:pager => ['get','page']
 				}.to_yaml
 			)
 			Episodey::DB::Website.create(
@@ -99,6 +94,9 @@ YAMLSTR
 					:shows => 'http://example.com/shows',
 					:movies => 'http://example.com/movies',
 					:rss => 'http://example.com/rss'
+				}.to_yaml,
+				:args_yaml => {
+					:pager => ['get','page']
 				}.to_yaml
 			)
 
@@ -210,26 +208,29 @@ YAMLSTR
 			n = Episodey::Test.generate_notification_object(nil)
 			Episodey::DB::Notification.create(
 				:user_id => n.user_id,
-				:media_id => n.media_id,
+				:ntype => n.ntype,
+				:ntype_id => n.ntype_id,
 				:subject => n.subject,
 				:message => n.message,
-				:is_sent => n.is_sent,
+				:is_sent => n.is_sent
 			)
 			n = Episodey::Test.generate_notification_object(nil)
 			Episodey::DB::Notification.create(
 				:user_id => n.user_id,
-				:media_id => n.media_id,
+				:ntype => n.ntype,
+				:ntype_id => n.ntype_id,
 				:subject => n.subject,
 				:message => n.message,
-				:is_sent => n.is_sent,
+				:is_sent => n.is_sent
 			)
 			n = Episodey::Test.generate_notification_object(nil)
 			Episodey::DB::Notification.create(
 				:user_id => 1,
-				:media_id => n.media_id,
+				:ntype => n.ntype,
+				:ntype_id => n.ntype_id,
 				:subject => n.subject,
 				:message => n.message,
-				:is_sent => n.is_sent,
+				:is_sent => n.is_sent
 			)
 
 			ActiveRecord::Base.connection.execute( "VACUUM" )
@@ -240,14 +241,15 @@ end
 if !Episodey::Test.test_data
 	Episodey::Test.test_data = true
 	Episodey::Test.app = Episodey::App.new
-	Episodey::DB.db_name = 'test/test.db'
+	Episodey::Session.load_config 'test/episodey.yml'
+	Episodey::Test.smtp_config = Episodey::Session.config[:smtp]
 
 	#update schema
 	Episodey::DB.sqlite_update_schema
 	#connect active record to db
 	Episodey::DB.active_record_connect
+	#recreate some data
+	Episodey::Test.create_test_data
 	#debug set user
 	Episodey::Session.set_user_by_id(1)
-	#recreated some data
-	Episodey::Test.create_test_data
 end

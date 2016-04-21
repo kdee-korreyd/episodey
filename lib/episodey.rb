@@ -2,6 +2,17 @@ require 'active_support/all'
 
 #the main Episodey module
 module Episodey
+	# @!attribute nl
+	#   @return [String] global newline
+	mattr_accessor :nl do
+		"\n"
+	end
+	# @!attribute tab
+	#   @return [String] global tab
+	mattr_accessor :tab do
+		" "*3
+	end
+
 	#App is an episody instance, multiple instances are allowed
 	class App
 		# @!attribute new_media
@@ -69,6 +80,8 @@ module Episodey
 			new_media = []
 			scannable_w = self.get_scannable_websites
 			scannable_ms = self.get_scannable_media_sets
+			page_limit = Episodey::Session.config_get_page_limit
+			page_limit = 1 if page_limit < 1
 
 			#only scan the keys necessary to find the media we want
 			search_url_keys = {}
@@ -84,10 +97,12 @@ module Episodey
 			scannable_w.each do |site_id,site|
 				search_url_keys.each do |url_key,ignored|
 					if site.urls[url_key] && !already_searched[site.urls[url_key]]
-						uri = URI(site.urls[url_key])
-						html = Net::HTTP.get(uri)
-						postings.concat(Episodey::Website.html_to_postings(html))
-						already_searched[site.urls[url_key]] = true
+						(1..page_limit).each do |page|
+							uri = site.generate_uri(url_key,page,nil)
+							html = Net::HTTP.get(uri)
+							postings.concat(Episodey::Website.html_to_postings(html))
+							already_searched[site.urls[url_key]] = true
+						end
 					end
 				end
 			end
@@ -146,6 +161,19 @@ module Episodey
 			return @new_media
 		end
 
+		# use the notify() method of each {Episodey::Media} object in the media_list param to generate notifications.
+		# results are appended to {#new_notifications}
+		# @param media_list [Array<Episodey::Media>] array of {Episodey::Media}. [default => {#new_media}]
+		# @return [Array<Episodey::Notification>] array of {Episodey::Notification}s returned by the notify() calls. raise Exception on failure.
+		def create_notifications(media_list)
+			notifications = []
+			media_list.each do |m|
+				n = m.notify
+				notifications << n if n
+			end
+			return notifications
+		end
+
 		
 		# [bug], the functionality this method would have provided is already handled by {#scan}
 		# done in #scan get matched media from the list passed in.  matched media is determined by xreffing {#scan_cfg} with
@@ -155,6 +183,7 @@ module Episodey
 		def get_matched_media(media_list)
 		end
 
+		# [bug], the functionality this method would have provided is already handled by {#scan}
 		# return a list of media from media_list param with any records which are already saved
 		# to the database excluded.  
 		#
@@ -170,6 +199,14 @@ module Episodey
 		# sends from both {#new_notifications} and any notifications saved in the db
 		# @return [nil]
 		def send_notifications_grouped
+			db_n = Episodey::DB::Notification.find_unsent
+			db_n = Episodey::Notification.db_to_object(db_n)
+			n = (db_n || []) + (@new_notifications || [])
+			r = Episodey::Notification.send_grouped(n)
+
+			#save notifications
+			n.each {|notification| notification.save}	
+			return r
 		end
 		alias_method :notify, :send_notifications_grouped
 
@@ -202,7 +239,7 @@ module Episodey
 		#
 		# @overload load(cfg_type,cfg_path)
 		#   initialize an {Episodey::App} specific config and/or database info.
-		#     cfg_type options are: [scan, web, media_set]
+		#     cfg_type options are: [scan, website, media_set]
 		#   @param cfg_type [String] the type of config file you are loading.
 		#   @param cfg_path [String] path to config file (not directory) for the specified cfg_type.
 		#
@@ -278,8 +315,41 @@ module Episodey
 		end
 
 		# save current session (media sets/media, websites, notifications) to db
-		# @return [nil] throws Exception no failure
+		# @return [Hash] depicting a count of how many of each type were saved
 		def save
+			r = {media_sets:0,media:0,websites:0,notifications:0}
+
+			if !@media_sets.nil?
+				@media_sets.each do |key,ms|
+					ms.save
+					r[:media_sets] += 1
+					r[:media] += (ms.media || []).length
+				end
+			end
+
+			if !@websites.nil?
+				@websites.each do |key,w|
+					w.save
+					r[:websites] += 1
+				end
+			end
+
+			if !@new_notifications.nil?
+				@new_notifications.each do |n|
+					n.save
+					r[:notifications] += 1
+				end
+			end
+
+			return r
+		end
+
+		# runs {#save} and then runs {#clear}
+		# @return [Hash] depicting a count of how many of each type were saved see {#save}
+		def flush
+			r = self.save
+			self.clear_scan_data
+			return r
 		end
 
 		# clear out any currently saved scan information.
@@ -290,13 +360,6 @@ module Episodey
 			@new_notifications = nil
 		end
 		alias_method :clear, :clear_scan_data
-
-		# runs {#save} and then runs {#clear}
-		# @return [nil]
-		def flush
-			self.save
-			self.clear_scan_data
-		end
 
 		# enable a mod
 		# @return [nil]
@@ -318,28 +381,6 @@ module Episodey
 		# @return [nil]
 		def list_enmods
 		end
-
-		# use the notify() method of each {Episodey::Media} object in the media_list param to generate notifications.
-		# results are appended to {#new_notifications}
-		# @param media_list [Array<Episodey::Media>] array of {Episodey::Media}. [default => {#new_media}]
-		# @return [Array<Episodey::Notification>] array of {Episodey::Notification}s returned by the notify() calls. raise Exception on failure.
-		def create_notifications(media_list)
-			notifications = []
-			media_list.each do |m|
-				n = m.notify
-				notifications << n if n
-			end
-			return notifications
-		end
-
-		# this is just an example of how to document an options hash
-		#
-		# @param [Hash] opts the options to create a message with.
-		# @option opts [String] :subject The subject
-		# @option opts [String] :from ('nobody') From address
-		# @option opts [String] :to Recipient email
-		# @option opts [String] :body ('') The email's body
-		def hash_options_example(opts = {}) end
 	end
 
 	#Base is the base class for episodey objects
@@ -409,12 +450,16 @@ module Episodey
 			false
 		end
 
+		mattr_accessor :config do
+			{}			
+		end
+
 		mattr_accessor :user
 
 		# set the currently active user by id
-		# @params id [Integer] the user id to set as the active user
-		# @returns [Episodey::DB::User] if user was set successfully
-		# @returns [false] if the user could not be found 
+		# @param id [Integer] the user id to set as the active user
+		# @return [Episodey::DB::User] if user was set successfully
+		# @return [false] if the user could not be found 
 		def self.set_user_by_id(id)
 			begin
 				user = Episodey::DB::User.find(id)
@@ -426,11 +471,27 @@ module Episodey
 			self.user = user
 			return user
 		end
+
+		# load config file into {#config}.  if path is nil it will look for episodey.yml in the exe directory
+		# @param path [String] path to the episodey config file (.yml format) to load.  nil for default.
+		# @return [Hash] populated {Episodey::Session.config}.  raises Exeption if config file not found
+		def self.load_config(path=nil)
+			path = "./episodey.yml" if path.nil?
+			self.config = YAML.load(File.read(path))
+		end
+
+		# [bug] page_limit should be moved to ScanCfg
+		# gets the page limit from the config options
+		# @return [Integer] page limit
+		def self.config_get_page_limit
+			return !self.config[:options].nil? && !self.config[:options][:page_limit].nil? ? self.config[:options][:page_limit] : 1
+		end
 	end
 end
 
 require 'mail'
 require 'net/http'
+require 'colorize'
 require_relative 'episodey/user'
 require_relative 'episodey/db'
 require_relative 'episodey/media'

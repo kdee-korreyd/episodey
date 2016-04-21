@@ -1,3 +1,3 @@
 mv scan.cfg.example scan.cfg
-mv websites/example.cfg.1 example.cfg
-mv media_sets/example.cfg.1 example.cfg
+mv websites/example.cfg.1 websites/example.cfg
+mv media_sets/example.cfg.1 media_sets/example.cfg

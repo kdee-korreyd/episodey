@@ -9,11 +9,6 @@ module Episodey
 		#   @return [Posting] reference to the Posting that refers to this Media.
 		attr_accessor :posting
 
-		# constructor
-		# @return [Episodey::Media] new Media
-		def initialize
-		end
-
 		# set the posting reference, and update postings media reference
 		# @param posting [Episodey::Posting] the Posting object to use to create this Media.
 		# @return [Episodey::Media] self.  raises Exception on failure.
@@ -40,7 +35,7 @@ module Episodey
 		end
 
 		# inverse of {db_to_object}
-		# @param  [Array<Episodey::Media>] the Media list to convert
+		# @param media_list [Array<Episodey::Media>] the Media list to convert
 		# @return [Array<Episodey::DB::Media>] converted list
 		def self.object_to_db(media_list)
 			media_list.map do |m|
@@ -71,8 +66,23 @@ module Episodey
 		end
 
 		# prints media information.
-		# @return [nil]
-		def info
+		# @param method [Fixnum] 1=self print, 2=sub-list print (usually as part of media-set print)
+		# @return [String]
+		def info(method=1)
+			nl = Episodey.nl
+			tab = Episodey.tab
+			body = ""
+			body += "[#{@id}]"
+		        body += ", #{@name}," if method == 1
+		        body += " #{@u_id}"
+			if @posting
+				body += ", #{@posting.url}"
+			end
+			if method == 1
+				print body.colorize(:light_green)
+			else
+				return body.colorize(:light_cyan)
+			end
 		end
 
 		# create a Notification object from this Media
@@ -95,7 +105,9 @@ module Episodey
 			end
 
 			notification.user_id = Episodey::Session.user.id
-			notification.media_id = @id
+			notification.ntype = "Media"
+			notification.ntype_id = @id
+			notification.media = self
 			return notification
 		end
 

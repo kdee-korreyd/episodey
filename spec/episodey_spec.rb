@@ -378,6 +378,39 @@ describe Episodey::Website do
 			end
 		end
 	end
+
+	describe "generate_uri" do
+		it "should generate the correct uri" do
+			r = Episodey::Website.new
+			r.u_id = 'testsave.com'
+			r.name = 'Test URI Generation'
+			r.urls = {"home": "test_uri_gen.com"}
+
+			#get arg
+			r.args = {"pager" => ["get","page"]}
+			uri = r.generate_uri("home",1,nil)
+			uri.to_s.must_equal "test_uri_gen.com?page=1"
+			uri = r.generate_uri("home",2,nil)
+			uri.to_s.must_equal "test_uri_gen.com?page=2"
+
+			#get arg with existing get args (should append existing)
+			r.urls = {"home": "test_uri_gen.com?garbage=1&tresure=test"}
+			uri = r.generate_uri("home",1,nil)
+			uri.to_s.must_equal "test_uri_gen.com?page=1&garbage=1&tresure=test"
+
+			#url arg
+			r.urls = {"home": "test_uri_gen.com/{searcher}{pager}"}
+			r.args = {"pager" => ["url","/page/{x}"]}
+			uri = r.generate_uri("home",1,nil)
+			uri.to_s.must_equal "test_uri_gen.com/page/1"
+
+			#	w. search
+			r.urls = {"home": "test_uri_gen.com/{searcher}{pager}"}
+			r.args = {"pager" => ["url","/page/{x}"], "searcher" => ["url","/search/{x}"]}
+			uri = r.generate_uri("home",1,"test")
+			uri.to_s.must_equal "test_uri_gen.com/search/test/page/1"
+		end
+	end
 end
 
 describe Episodey::Media do
@@ -655,6 +688,13 @@ describe Episodey::Notification do
 			r.must_equal 2
 		end
 	end
+
+	describe "find_unsent" do
+		it "should return all unsent notifications" do
+			n = Episodey::DB::Notification.find_unsent
+			assert_operator n.length, :>, 2
+		end
+	end
 end
 
 describe Episodey::User do
@@ -765,3 +805,5 @@ describe Episodey::ScanCfg do
 end
 
 
+describe Episodey::Session do
+end

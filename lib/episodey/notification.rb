@@ -17,9 +17,17 @@ module Episodey
 		#   @return [Boolean] true if this notification has been sent before
 		attr_accessor :is_sent
 
-		# @!attribute media
+		# @!attribute ntype
+		#   @return [String] the type of media being notified about [eg. Media, Info, Warning, etc...]
+		attr_accessor :ntype
+
+		# @!attribute ntype_id
 		#   @return [Integer] id of the media(if any) this notification is for
-		attr_accessor :media_id
+		attr_accessor :ntype_id
+
+		# @!attribute media
+		#   @return [Episodey::Media] the media object this notification is associated with
+		attr_accessor :media
 
 		# constructor
 		# @return [Episodey::Notification] new Notification
@@ -35,6 +43,13 @@ module Episodey
 			return true
 		end
 
+		# set and return the media id for this Notfication (if @media exists). or else just return {#ntype_id}
+		# @return [Integer] the media id
+		def media_id
+			@ntype_id = @media.id if (!@media.nil? && !@media.id.nil? && @ntype_id.nil?)
+			return @ntype_id
+		end
+
 		# converts all records in the db_notification_list list from active record objects to Episodey::Notification objects
 		# @param db_notification_list [Array<Episodey::DB::Notification>] the {Notification} list to convert
 		# @return [Array<Episodey::Notification>] converted list
@@ -45,7 +60,8 @@ module Episodey
 				notification.message = n.message
 				notification.is_sent = n.is_sent
 				notification.user_id = n.user_id
-				notification.media_id = n.user_id
+				notification.ntype = n.ntype
+				notification.ntype_id = n.ntype_id
 				notification.id = n.id
 				notification
 			end
@@ -63,7 +79,8 @@ module Episodey
 					r = Episodey::DB::Notification.find(n.id)
 				end
 				r.user_id = n.user_id
-				r.media_id = n.media_id
+				r.ntype = n.ntype
+				r.ntype_id = n.media_id
 				r.subject = n.subject
 				r.message = n.message
 				r.is_sent = n.is_sent
@@ -79,15 +96,7 @@ module Episodey
 			if ( defined?(Episodey::Test) )
 				smtp = Episodey::Test.smtp_config
 			else
-				smtp = { 
-					:address => 'smtp.gmail.com', 
-					:port => 587, 
-					:domain => 'gmail.com', 
-					:user_name => 'username',
-					:password => 'password', 
-					:enable_starttls_auto => true, 
-					:openssl_verify_mode => 'none' 
-				}
+				smtp = Episodey::Session.config[:smtp]
 			end
 			smtp
 		end
@@ -99,6 +108,9 @@ module Episodey
 		# @return raises Exception on failure.
 		def send_email(to, subject, body)
 			smtp = self.class.smtp
+			if smtp.nil?
+				raise Exception, "no smtp configuration given."
+			end
 			Mail.defaults { delivery_method :smtp, smtp }
 			mail = Mail.new do
 				from smtp[:user_name]
@@ -109,13 +121,13 @@ module Episodey
 					body body
 				end
 			end
-			r = mail.deliver!
+			mail.deliver!
 		end
 
 		# send this notification to {#user}
 		# @return [Boolean] true if sent successfully. false if not initialized or already sent.  raises Exception on failure.
 		def send
-			if (self.is_sent && !self.is_sent.zero?) || !self.is_initialized
+			if (@is_sent && !@is_sent.zero?) || !self.is_initialized
 				return false
 			end
 
@@ -124,15 +136,15 @@ module Episodey
 				raise Exception, "empty user id"
 			end
 			#grab the user (must exist)
-			user = Episodey::DB::User.find(self.user_id)
+			user = Episodey::DB::User.find(@user_id)
 			if !user
 				raise Exception, "user not found"
 			end
 
-			#get media if there is any
+			#get media if there is any (currently not used, do I need this?)
 			media = nil
-			if @media
-				media = Episdoey::DB::Media.find(self.media_id)
+			if @ntype == 'Media' && !@ntype_id.nil?
+				media = Episdoey::DB::Media.find(@ntype_id)
 			end
 
 			#get email (fall to debug email if it exists)
@@ -213,6 +225,34 @@ module Episodey
 			end
 
 			return num_sent
+		end
+
+		# prints notification information.
+		# @return [String]
+		def info
+			nl = Episodey.nl
+			tab = Episodey.tab
+			header = "[#{self.id}]"
+			body = ""
+
+			user = !@user_id.nil? ? Episodey::DB::User.find(@user_id) : nil
+			if !user.nil?
+				header += ", #{user.email}"
+			end
+
+			type_id = self.media_id #get the type_id 
+			media = (@ntype == 'Media' && !type_id.nil?) ? Episodey::DB::Media.find(type_id) : nil
+			if !media.nil?
+				header += ", #{media.u_id}"
+			end
+
+			msg_length_limit = 50
+			msg = !@message.nil? && @message.length > msg_length_limit ? @message[0..50] + "..." : @message
+			body += "#{tab}Subject: #{@subject.to_s}#{nl}#{tab}Body: #{msg.to_s}"
+
+			print header.colorize(:light_green) + nl
+			print body.colorize(:light_cyan)
+			puts nl
 		end
 
 		# save this Notification object to the database

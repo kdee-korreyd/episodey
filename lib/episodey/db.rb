@@ -7,16 +7,26 @@ module Episodey
 		# @!attribute db_adapter
 		#   @!scope class
 		#   @return [String] database adapter.  options [sqlite3] 
-		mattr_accessor :db_adapter do
+		mattr_writer :db_adapter do
 			'sqlite3'
+		end
+		def self.db_adapter
+			c = Episodey::Session.config[:database]
+			@@db_adapter = c[:adapter] if !c.nil? && !c[:adapter].nil?
+			@@db_adapter
 		end
 
 
 		# @!attribute db_name
 		#   @!scope class
 		#   @return [String] default database name. 
-		mattr_accessor :db_name do
+		mattr_writer :db_name do
 			'default.db'
+		end
+		def self.db_name
+			c = Episodey::Session.config[:database]
+			@@db_name = c[:database] if !c.nil? && !c[:database].nil?
+			@@db_name
 		end
 
 		class << self
@@ -25,7 +35,7 @@ module Episodey
 			# @return [true] if schema creation was successful.  raises Exception on failure.
 			def sqlite_update_schema
 				begin
-					db = SQLite3::Database.open @@db_name
+					db = SQLite3::Database.open self.db_name
 
 					#create users table
 					db.execute <<-SQL
@@ -89,6 +99,7 @@ module Episodey
 						"u_id" varchar(100),
 						"name" varchar(255), 
 						"urls_yaml" text,
+						"args_yaml" text,
 						"created_at" datetime,
 						"updated_at" datetime
 					);
@@ -99,7 +110,8 @@ module Episodey
 					CREATE TABLE IF NOT EXISTS "notifications" (
 						"id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 
 						"user_id" integer,
-						"media_id" integer,
+						"ntype" varchar(50),
+						"ntype_id" integer,
 						"subject" varchar(500), 
 						"message" text, 
 						"is_sent" integer,
@@ -119,7 +131,7 @@ module Episodey
 			# enables foreign_keys flag for sqlite3. 
 			# @return [true] if successful.  raises Exception on failure.
 			def sqlite_enable_foreign_keys
-				if ( @@db_adapter == 'sqlite3' )
+				if ( self.db_adapter == 'sqlite3' )
 					ActiveRecord::Base.connection.execute( "PRAGMA foreign_keys=1" )
 				end
 			end
@@ -133,8 +145,8 @@ module Episodey
 			# @return [true] if schema creation was successful.  raises Exception on failure.
 			def active_record_connect
 				ActiveRecord::Base.establish_connection(
-					:adapter => @@db_adapter,
-					:database => @@db_name
+					:adapter => self.db_adapter,
+					:database => self.db_name
 				)			
 
 				#if using sqlite3, enable foreign keys
@@ -151,7 +163,7 @@ module Episodey
 		class Media < ActiveRecord::Base
 			self.table_name = "media"
 
-			def find_by_u_id(u_id)
+			def self.find_by_u_id(u_id)
 				self.where(u_id: u_id).first
 			end
 		end
@@ -160,6 +172,9 @@ module Episodey
 		end
 
 		class Notification < ActiveRecord::Base
+			def self.find_unsent
+				self.where("is_sent is null or is_sent <> ?" ,1).all
+			end
 		end
 
 		class User < ActiveRecord::Base

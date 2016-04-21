@@ -8,6 +8,10 @@ module Episodey
 		#     current keys are: [home,rss,shows,movies]
 		attr_accessor :urls
 
+		# @!attribute args
+		#   @return [Hash] a hash of arrays desribing arguments to be sent to this url [pager, searcher etc]
+		attr_accessor :args
+
 		# create {Website} objects from a config file
 		# @example example contents of a website .cfg file
 		#   [
@@ -33,6 +37,7 @@ module Episodey
 				website.name = site["name"]
 				website.u_id = site["u_id"]
 				website.urls = site["urls"]
+				website.args = site["args"]
 
 				if website.u_id.nil? || website.u_id.empty?
 					raise Exception, "Website#u_id cannot be empty"
@@ -65,6 +70,7 @@ module Episodey
 					w = website_list[website.u_id]
 					website.name = w.name.to_s.empty? ? website.name : w.name
 					website.urls = w.urls.empty? ? website.urls : w.urls
+					website.args = w.args.empty? ? website.args : w.args
 
 					#remove this from the website list
 					website_list.delete(website.u_id)
@@ -92,6 +98,7 @@ module Episodey
 				website.name = site.name
 				website.u_id = site.u_id
 				website.urls = YAML.load(site.urls_yaml)
+				website.args = !site.args_yaml.nil? ? YAML.load(site.args_yaml) : nil
 				websites << website
 			end
 
@@ -113,6 +120,7 @@ module Episodey
 				r.u_id = site.u_id;
 				r.name = site.name;
 				r.urls_yaml = site.urls.to_yaml;
+				r.args_yaml = !site.args.nil? ? site.args.to_yaml : nil;
 				db_websites << r
 			end
 			return db_websites
@@ -142,6 +150,76 @@ module Episodey
 			end
 
 			return postings
+		end
+
+		# generate a uri for this website given uri_key, page, and search
+		# @param uri_key [String] the uri_key to use to generate the uri [eg. home, shows, movies, rss, etc...]
+		# @param page [Fixnum] the value to fill in for the pager attribute
+		# @param search [String] the value to fill in for the searcher attribute
+		# @return [String] the generated uri.  raises Exception on failure.
+		def generate_uri(uri_key,page=nil,search=nil)
+			query = []
+			uri = @urls.has_key?(uri_key.to_s) ? @urls[uri_key.to_s].clone : @urls[uri_key.to_sym].clone
+
+			placeholder = "{x}"
+			if !@args.nil? 
+				if !page.nil?
+					pager = @args["pager"]
+					if !pager.nil?
+						case pager[0].to_s
+						when "get"
+							query << "#{pager[1]}=#{page}"
+						when "url"
+							uri.gsub!(/\/?\{pager\}/,pager[1].sub(placeholder,page.to_s))
+						end
+					end
+				end
+				if !search.nil?
+					searcher = @args["searcher"]
+					if !searcher.nil?
+						case searcher[0].to_s
+						when "get"
+							query << "#{searcher[1]}=#{search}"
+						when "url"
+							uri.gsub!(/\/?\{searcher\}/,searcher[1].sub(placeholder,search.to_s))
+						end
+					end
+				end
+			end
+
+			#remove unused tags from url
+			uri.gsub!(/\/?\{pager\}/,"")
+			uri.gsub!(/\/?\{searcher\}/,"")
+
+			#split the uri up, this has the byproduct of checking the new url and
+			#	breaking up the querystring from the url so that i can rejoin it with 
+			#	any newly generate querytring values
+			uri = URI(uri)
+			if !uri.query.nil? 
+				query << uri.query.to_s
+			end
+			uri = "#{uri.scheme.nil? ? "" : uri.scheme.to_s + "://"}#{uri.host.to_s}#{uri.path.to_s}".chomp("/")
+
+			if !query.empty?
+				uri += "?" + query.join("&")
+			end
+			return URI(uri)
+		end
+
+		# prints website information.
+		# @return [nil]
+		def info
+			nl = Episodey.nl
+			tab = Episodey.tab
+			header = ""
+			body = ""
+			header += "[#{self.id}] [#{self.u_id}, #{self.name}#{!self.urls.nil? && !self.urls['home'].nil? ? ', '+self.urls['home'] : ''}]#{nl}"
+			urls.each do |key,url|
+				if key != 'home'
+					body += "#{tab}#{key} => #{url}#{nl}"
+				end
+			end
+			puts header.colorize(:light_green) + body.colorize(:light_cyan)
 		end
 
 		# save this Website object to the database
