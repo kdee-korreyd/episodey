@@ -27,18 +27,7 @@ module Episodey
 			@media = []
 		end
 
-		# find media in this objects @media by u_id
-		# @param u_id [Integer] the u_id to search for
-		# @return [Episodey::Media] the media object found.  raises Exception on failure.
-		# @return [nil] if not found
-		def find_media_by_u_id(u_id)
-			@media.each do |m|
-				if m.u_id == u_id
-					return m
-				end
-			end
-			return false
-		end
+
 
 		# add a new {Episodey::Media} object to this MediaSets {#media} attribute.
 		# @param media [Episodey::Media] the Media object to add.
@@ -205,16 +194,32 @@ module Episodey
 			end
 			return nil
 		end
+		alias_method :find_media_by_u_id, :find_media
 
 		# prints media set information (and optionally its media list).
 		# @param include_media_list [Boolean] if true then the media_list for each set is printed as well
 		# @return [nil]
-		def info(include_media_list)
+		def info(include_media_list=false)
+			nl = Episodey.nl
+			tab = Episodey.tab
+			media_count = !@media.nil? ? @media.length : 0
+			header = "[#{self.id}] [#{self.u_id}, #{self.name}, #{media_count} Episodes]#{nl}"
+			print header.colorize(:light_green)
+
+			if include_media_list
+				self.list_media
+			end
+			puts nl
 		end
 
 		# prints media list.
 		# @return [nil]
 		def list_media
+			nl = Episodey.nl
+			tab = Episodey.tab
+			@media.each do |m|
+				print tab + m.info(2)
+			end
 		end
 
 		# save this MediaSet & its Media list to the database

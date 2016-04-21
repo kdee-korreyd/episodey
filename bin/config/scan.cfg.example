@@ -6,6 +6,9 @@
 
     "media_sets": [
         "^elementary$",
-        "^the_blacklist$"
+        "^the_blacklist$",
+        "^castle$",
+        "^marvels_agents_of_shield$",
+        "^broad_city$"
     ]
 }

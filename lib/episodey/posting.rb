@@ -42,7 +42,7 @@ module Episodey
 		end
 
 		# inverse of {db_to_object}
-		# @param  [Array<Episodey::Posting>] the Posting list to convert
+		# @param posting_list [Array<Episodey::Posting>] the Posting list to convert
 		# @return [Array<Episodey::DB::Posting>] converted list
 		def self.object_to_db(posting_list)
 			posting_list.map do |p|
@@ -52,7 +52,7 @@ module Episodey
 				else
 					r = Episodey::DB::Posting.find(p.id)
 				end
-				r.link = p.u_id
+				r.link = p.url
 				r.html = p.html
 				r.media_id = !p.media.nil? ? p.media.id : nil
 				r

@@ -103,8 +103,7 @@ docs
 *.lock
 *.db
 *.cfg
+*.yml
 *.bad
 
 #temporary
-test_helper.rb
-console.rb
