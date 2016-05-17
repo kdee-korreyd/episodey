@@ -1,3 +1,18 @@
+####################################################################
+#BUGS & FIXES      
+####################
+#2016-04-07 - korreyd - 
+#	bug: page 1 returns nothing during scan to some websites
+#	fix [episodey.rb]: allowed following redirects [only 1 will be followed for now]
+#
+#2016-04-07 - korreyd - 
+#	bug: incorrect media being returned and Media @u_id/@name mismatch
+#	fix [media-set.rb]: had = instead of == in MediaSet.find_media comparison
+#
+#2016-05-16 - korreyd - 
+#	bug: sqlite db interaction is pretty slow
+#	proposed solution: create db indexes & surround sqlite interaction within a transation
+####################################################################
 require 'active_support/all'
 
 #the main Episodey module
@@ -99,7 +114,15 @@ module Episodey
 					if site.urls[url_key] && !already_searched[site.urls[url_key]]
 						(1..page_limit).each do |page|
 							uri = site.generate_uri(url_key,page,nil)
-							html = Net::HTTP.get(uri)
+							res = Net::HTTP.get_response(uri)
+
+							#follow up to 1 redirect
+							case res 
+								when Net::HTTPRedirection then
+									res = Net::HTTP.get_response(URI(res['location']))
+							end
+							html = res.body #[bug] not checking for errors in res
+
 							postings.concat(Episodey::Website.html_to_postings(html))
 							already_searched[site.urls[url_key]] = true
 						end
@@ -140,7 +163,6 @@ module Episodey
 					if keep && !@media_sets[ms_k].nil? && !@media_sets[ms_k].media.nil?
 						if @media_sets[ms_k].find_media_by_u_id(m.u_id)
 							keep = false
-							break
 						end
 					end
 
@@ -195,18 +217,28 @@ module Episodey
 
 		# sends out any unsent notifications.  grouped means notificaion records will be 
 		# consolidated and sent per user.  Each user receives 1 email.
+		# @param new_only [Boolean] true if only new notifications should be sent
+		# @param save [Boolean] true if notifications should be saved
 		#
 		# sends from both {#new_notifications} and any notifications saved in the db
-		# @return [nil]
-		def send_notifications_grouped
-			db_n = Episodey::DB::Notification.find_unsent
-			db_n = Episodey::Notification.db_to_object(db_n)
+		# @return [Array] list of [Episodey::Notification] objects which were sent
+		def send_notifications_grouped(new_only=false,save=false)
+			if !new_only
+				db_n = Episodey::DB::Notification.find_unsent
+				db_n = Episodey::Notification.db_to_object(db_n)
+			end
 			n = (db_n || []) + (@new_notifications || [])
-			r = Episodey::Notification.send_grouped(n)
 
-			#save notifications
-			n.each {|notification| notification.save}	
-			return r
+			begin
+				r = Episodey::Notification.send_grouped(n)
+
+				#save notifications
+				Episodey::Notification.save_all(n, new_only) if save
+			rescue
+				n = []
+			end
+
+			return n
 		end
 		alias_method :notify, :send_notifications_grouped
 
@@ -314,30 +346,32 @@ module Episodey
 			end
 		end
 
-		# save current session (media sets/media, websites, notifications) to db
+		# save current session (media sets/media, websites) to db
+		#  this method will not save notifications
+		#
+		# @param types [Array] list of object types to save [media,media-sets,websites,all]
+		# @param new_only [Boolean] true if it should only save new objects
+		#
 		# @return [Hash] depicting a count of how many of each type were saved
-		def save
-			r = {media_sets:0,media:0,websites:0,notifications:0}
+		def save(types=["all"],new_only=false)
+			r = {media_sets:0,media:0,websites:0}
 
-			if !@media_sets.nil?
-				@media_sets.each do |key,ms|
-					ms.save
-					r[:media_sets] += 1
-					r[:media] += (ms.media || []).length
+			if !(types & ["all","media-sets","media"]).empty?
+				if !@media_sets.nil?
+					@media_sets.each do |key,ms|
+						ms.save new_only
+						r[:media_sets] += 1
+						r[:media] += (ms.media || []).length
+					end
 				end
 			end
 
-			if !@websites.nil?
-				@websites.each do |key,w|
-					w.save
-					r[:websites] += 1
-				end
-			end
-
-			if !@new_notifications.nil?
-				@new_notifications.each do |n|
-					n.save
-					r[:notifications] += 1
+			if !(types & ["all","websites"]).empty?
+				if !@websites.nil?
+					@websites.each do |key,w|
+						w.save new_only
+						r[:websites] += 1
+					end
 				end
 			end
 
@@ -464,7 +498,21 @@ module Episodey
 			begin
 				user = Episodey::DB::User.find(id)
 			rescue Exception => e
-				#puts e
+				return false
+			end
+
+			self.user = user
+			return user
+		end
+
+		# set the currently active user by email address
+		# @param email [String] the email to set as the active user
+		# @return [Episodey::DB::User] if user was set successfully
+		# @return [false] if the user could not be found 
+		def self.set_user_by_email(email)
+			begin
+				user = Episodey::DB::User.find_by_email(email)
+			rescue Exception => e
 				return false
 			end
 

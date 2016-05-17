@@ -111,20 +111,43 @@ module Episodey
 			return notification
 		end
 
+		# returns true if this media is not currently saved to the database
+		# @return [Boolean] true on if object is new, false if it isn't
+		def is_new?
+			return false if !@id.nil?
+			if Episodey::DB::Media.find_by_u_id(@u_id)
+				return false
+			end
+
+			return true
+		end
+
 		# save this Media object to the database
+		#
+		# @param new_only [Boolean] true if it should only save new media
+		# 
 		# @return [Boolean] true on success.  false if Media object has not been initialized.  raises Exception on failure.
-		def save
+		def save(new_only=false)
 			if !self.is_initialized
 				return false
 			end
 
-			r = Episodey::Media.object_to_db([self])[0]
-			r.save
+			#if this is a new media_set then save the media set first
+			# and then let the media set handle saving the media
+			is_new_media_set = @media_set.is_new?
+			if is_new_media_set
+				@media_set.save new_only
+			end
 
-			@id = @id.nil? ? r.id : @id
+			if !is_new_media_set && (!new_only || (new_only && self.is_new?))
+				r = Episodey::Media.object_to_db([self])[0]
+				r.save
 
-			#save posting
-			@posting.save if !@posting.nil?
+				@id = @id.nil? ? r.id : @id
+
+				#save posting
+				@posting.save if !@posting.nil?
+			end
 			
 			return !@id.nil?
 		end

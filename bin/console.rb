@@ -1,5 +1,5 @@
-#require '../lib/episodey'
-require 'episodey'
+require '../lib/episodey'
+#require 'episodey'
 require 'pry'
 
 Episodey::Session.load_config '../episodey.yml'
