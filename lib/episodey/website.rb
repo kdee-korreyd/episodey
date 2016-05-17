@@ -222,17 +222,34 @@ module Episodey
 			puts header.colorize(:light_green) + body.colorize(:light_cyan)
 		end
 
+		# returns true if this website is not currently saved to the database
+		# @return [Boolean] true on if object is new, false if it isn't
+		def is_new?
+			return false if !@id.nil?
+			if Episodey::DB::Website.find_by_u_id(@u_id)
+				return false
+			end
+
+			return true
+		end
+
 		# save this Website object to the database
+		#
+		# @param new_only [Boolean] true if it should only save new websites
+		#
 		# @return [Boolean] true on success.  false if Website object has not been initialized.  raises Exception on failure.
-		def save
+		def save(new_only=false)
 			if !self.is_initialized
 				return false
 			end
 
-			r = Episodey::Website.object_to_db([self])[0]
-			r.save
+			if !new_only || (new_only && self.is_new?)
+				r = Episodey::Website.object_to_db([self])[0]
+				r.save
 
-			@id = @id.nil? ? r.id : @id
+				@id = @id.nil? ? r.id : @id
+			end
+
 			return !@id.nil?
 		end
 	end

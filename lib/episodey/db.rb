@@ -155,9 +155,15 @@ module Episodey
 		end
 
 		class Website < ActiveRecord::Base
+			def self.find_by_u_id(u_id)
+				self.where(u_id: u_id).first
+			end
 		end
 
 		class MediaSet < ActiveRecord::Base
+			def self.find_by_u_id(u_id)
+				self.where(u_id: u_id).first
+			end
 		end
 
 		class Media < ActiveRecord::Base
@@ -175,9 +181,16 @@ module Episodey
 			def self.find_unsent
 				self.where("is_sent is null or is_sent <> ?" ,1).all
 			end
+
+			def self.find_by_key(user_id,ntype,ntype_id)
+				self.where("user_id=? and ntype=? and ntype_id=?" ,user_id, ntype, ntype_id).first
+			end
 		end
 
 		class User < ActiveRecord::Base
+			def self.find_by_email(email)
+				self.where("email=?",email).first
+			end
 		end
 	end
 end

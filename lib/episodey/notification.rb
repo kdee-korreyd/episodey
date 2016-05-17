@@ -1,6 +1,10 @@
 module Episodey
 	#notification object
 	class Notification < Episodey::Base
+		# @!attribute presave
+		#   @return [Integer] temporarily holds the id of this object before saving
+		attr_accessor :presave
+
 		# @!attribute user
 		#   @return [Integer] the id of the user this notification is for
 		attr_accessor :user_id
@@ -37,6 +41,15 @@ module Episodey
 		# checks to see if this object is initialized. 
 		# @return [Boolean] true if initialized, false if not initialized
 		def is_initialized
+			if !self.is_sendable? || self.ntype.nil? || self.media_id.nil?
+				return false
+			end	
+			return true
+		end
+
+		# checks to see if this object is ready to be send. 
+		# @return [Boolean] true if ready to be send, false if not
+		def is_sendable?
 			if self.subject.to_s.empty? || self.message.to_s.empty?
 				return false
 			end	
@@ -127,7 +140,7 @@ module Episodey
 		# send this notification to {#user}
 		# @return [Boolean] true if sent successfully. false if not initialized or already sent.  raises Exception on failure.
 		def send
-			if (@is_sent && !@is_sent.zero?) || !self.is_initialized
+			if (@is_sent && !@is_sent.zero?) || !self.is_sendable?
 				return false
 			end
 
@@ -143,8 +156,8 @@ module Episodey
 
 			#get media if there is any (currently not used, do I need this?)
 			media = nil
-			if @ntype == 'Media' && !@ntype_id.nil?
-				media = Episdoey::DB::Media.find(@ntype_id)
+			if @ntype == 'Media' && !self.media_id.nil?
+				media = Episdoey::DB::Media.find(self.media_id)
 			end
 
 			#get email (fall to debug email if it exists)
@@ -217,10 +230,8 @@ module Episodey
 					end
 				rescue
 					rollback = true
-				ensure
-					if rollback
-						n_sent.each {|n| n.is_sent = 0}
-					end
+					n_sent.each {|n| n.is_sent = 0}
+					raise Exception, "failure sending notification [#{subject}] to #{user_id}"
 				end
 			end
 
@@ -255,17 +266,57 @@ module Episodey
 			puts nl
 		end
 
+		# returns true if this notification is not currently saved to the database
+		# @return [Boolean] true on if object is new, false if it isn't
+		def is_new?
+			return false if !@id.nil?
+			if Episodey::DB::Notification.find_by_key(@user_id,@ntype,self.media_id)
+				return false
+			end
+
+			return true
+		end
+
+		# save all notifications in the Array given
+		#
+		# @param notifications [Array] Array of notifications to save
+		# @param new_only [Boolean] true if it should only save new notifications
+		#
+		# @return [Boolean] true. raises Exception on failure
+		def self.save_all(notifications, new_only=false)
+			ActiveRecord::Base.transaction do
+				notifications.each do |notification| 
+					r = notification.save new_only
+					if r === false
+						#reset ids
+						notifications.each {|n| n.id = n.presave}
+						#raise exception
+						raise Exception, "uninitialized notification #{notification.id}"
+					end
+				end
+			end
+			return true
+		end
+
 		# save this Notification object to the database
+		#
+		# @param new_only [Boolean] true if it should only save new notifications
+		#
 		# @return [Boolean] true on success.  false if Notification object has not been initialized.  raises Exception on failure.
-		def save
+		def save(new_only=false)
+			@presave = @id
+
 			if !self.is_initialized
 				return false
 			end
 
-			r = Episodey::Notification.object_to_db([self])[0]
-			r.save
+			if !new_only || (new_only && self.is_new?)
+				r = Episodey::Notification.object_to_db([self])[0]
+				r.save
 
-			@id = @id.nil? ? r.id : @id
+				@id = @id.nil? ? r.id : @id
+			end
+
 			return !@id.nil?
 		end
 	end

@@ -1,0 +1,137 @@
+NAME
+	episodey - episodey scans bb type sites and sends notifications when there are new episodes of specified shows available.  
+
+SYNOPSIS
+	episodey [OPTIONS] [--daemon --scan-interval=<seconds>] [LOAD DIRECTORY]
+	episodey --list [OPTIONS] [SEARCH]
+	episodey --create-profile [OPTIONS] [<EMAIL> <NAME>]
+
+DESCRIPTION
+	episodey scans bb type sites and sends notifications when there are new episodes of specified shows available.  
+
+OPTIONS
+	CONFIGURATION & INITIALIZATION
+		--load-dir=<path>
+			Set the load directory.  Defaults to ~/.config/episodey.
+
+		--scan-cfg=<path>
+			Scan config file path.  This will override the default scan.cfg loaded from the load-dir
+
+		--websites=<path>
+			Multiple allowed. Specify A website config file path.  This file will be used in addition to
+			any other website config files loaded by --load-dir or other --websites options.
+
+		--media-sets=<path>
+			Multiple allowed. Specify A media set config file path.  This file will be used in addition to
+			any other media set config files loaded by --load-dir or other --media-sets options.
+
+		--profile=<value>
+			Specify the profile to execute this instance of episodey as.  Defaults to the first profile created.
+			if <value> is an integer it represents the profile id of the profile you want to run as.	
+			if <value> is an email it represents the email address of the profile you want to run as.	
+
+		--config=<path>
+			Load episodey config file from <path>.  Defaults to ~/.config/episodey/episodey.yml
+			Using --load-dir does NOT change the default config file path.
+
+		--db=<path>
+			Specify the database file path to use for this instance of episodey.  Defaults to 
+			~/.config/episodey/db/episodey.db.  Using --load-dir does NOT change the default database path.
+
+		--daemon
+			Run episodey in the background on an interval specified by --scan-interval.  
+
+		--scan-interval=<seconds>
+			Used with --daemon to specify how often to rescan.  episodey will rescan at every <seconds> seconds
+			with all options specified when episodey was started with the --daemon options.
+			
+		
+	ACTIONS
+		--scan
+			Scan websites for new media.  Also creates notifications which may be sent with --notify.
+			All new notifications are created for the currently running profile.
+
+		--notify
+			Send new media notifications. 
+
+		--save
+			Save any media-sets, media, websites, postings, and notifications to the database.  
+			Saving information to the database allows for tracking of what media has already been found,
+			as well as saving notifications to be sent at a later time.
+
+		--create-profile
+			Create a new profile.
+
+		--list
+			List media-set,media,website, and or notifications found/created by episodey.
+
+	ACTION MODIFIERS
+		--new
+			Use with --list, --notify, & --save. Only list/save new objects.
+			When used with --notify only new notifications will be sent/saved, notifications already in the db 
+			will be ignored whether they have been sent or not.
+
+		--types=<value>
+			Used with --list & --save. Only list/save <value> types of objects.
+			<value> is a comma delimited list of any of: [media,media-sets,websites,notifications,all].
+
+		--include=<regex>
+			Multiple allowed.  Used with --list.  Only list objects who's u_id matches <regex>.
+			If --types is not specified or "media" is included in types then <regex> matches against
+			media objects only.  Otherwise all --types specified are checked.
+
+		--exclude=<regex>
+			Multiple allowed.  Used with --list.  Do not list objects who's u_id matches <regex>
+			If --types is not specified or "media" is included in types then <regex> matches against
+			media objects only.  Otherwise all --types specified are checked.
+
+		--search=<regex>
+			Equivalent to: --list --types=all --include=<regex>.
+
+	OTHER OPTIONS
+		--help
+			Display help information about episodey.
+
+		--verbose
+			Print out way too much stuff during execution.
+
+	FILES
+		~/.config/episodey/
+			default load directory.  contains the files that make episodey go.
+
+		~/.config/episodey/episodey.yml
+			default episodey config file which specifies smtp and database credentials. default db path may be specified
+			here as well. options include:
+				smtp: smtp email creds & options
+				database: database adapter (currently only sqlite3) and default db path
+				options:
+					page_limit: the number of pages to scan per website url
+				
+		~/.config/episodey/db/episodey.db
+			default sqlite3 database where previously loaded websites, media-sets, notfications, and scan data is stored.
+
+		~/.config/episodey/scan.cfg
+			ignored if --scan-cfg is specified.
+
+		~/.config/episodey/media-sets/*.cfg
+			media set config files.  these are all loaded every time the cli is executed.
+			see full episodey README for media-set config file structure...
+
+		~/.config/episodey/websites/*.cfg
+			website config files.  these are all loaded every time the cli is executed.
+			see full episodey README for website config file structure...
+
+	FURTHER DOCUMENTATION
+		When using --load-dir to change the load directory be sure to create the file structure
+		specified in the FILES section of this documentation to ensure correct initialization of episodey.
+
+		Also specifying --load-dir will NOT modify the default db or the episodey.yml config file path.  
+		If you need to specify the db or config file path use the --db & --config options respectively.
+
+	AUTHORS
+		episodey is created and maintained by Korrey Jacobs & hopefully some others who will be
+		given credit here when the time comes.
+
+	REPORTING BUGS
+		Report bugs to github @ https://github.com/kdee-korreyd/episodey/issues.  
+		Or email me directly @ kdeebug.info@gmail.com.
